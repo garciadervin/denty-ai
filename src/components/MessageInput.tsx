@@ -131,10 +131,18 @@ export default function MessageInput({ onSend, isLoading, disabled }: MessageInp
 
     const transcribeAudio = async (blob: Blob, mimeType: string) => {
         const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
-        const formData = new FormData();
-        formData.append('audio', blob, `recording.${ext}`);
+
+        // Encode as base64 JSON — avoids multipart/form-data which Vercel blocks in production
+        const arrayBuffer = await blob.arrayBuffer();
+        const binary = String.fromCharCode(...new Uint8Array(arrayBuffer));
+        const audio = btoa(binary);
+
         try {
-            const res = await fetch('/api/transcribe', { method: 'POST', body: formData });
+            const res = await fetch('/api/transcribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ audio, mimeType, ext }),
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             if (data.text) setText((prev) => prev ? `${prev} ${data.text}` : data.text);

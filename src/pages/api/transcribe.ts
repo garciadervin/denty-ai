@@ -4,24 +4,23 @@ import Groq from 'groq-sdk';
 export const POST: APIRoute = async ({ request }) => {
     const groq = new Groq({ apiKey: import.meta.env.GROQ_API_KEY });
 
-    const formData = await request.formData();
-    const audioFile = formData.get('audio') as File | null;
+    const { audio, mimeType, ext } = await request.json();
 
-    if (!audioFile) {
-        return new Response(JSON.stringify({ error: 'No audio file provided' }), {
+    if (!audio) {
+        return new Response(JSON.stringify({ error: 'No audio data' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' },
         });
     }
 
-    // Use native File constructor (Node.js 20+, available on Vercel)
-    // Avoids toFile() which can fail due to ESM/CJS bundling differences in production
-    const buffer = await audioFile.arrayBuffer();
-    const ext = audioFile.type.includes('mp4') ? 'mp4'
-        : audioFile.type.includes('ogg') ? 'ogg'
-            : 'webm';
+    // Decode base64 to binary
+    const binary = atob(audio);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
 
-    const file = new File([buffer], `recording.${ext}`, { type: audioFile.type });
+    const file = new File([bytes], `recording.${ext}`, { type: mimeType });
 
     const transcription = await groq.audio.transcriptions.create({
         file,
