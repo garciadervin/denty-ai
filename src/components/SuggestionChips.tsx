@@ -16,9 +16,7 @@ export default function SuggestionChips({ onSelect }: SuggestionChipsProps) {
         <div className="welcome">
             <div className="welcome-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 2c-1.5 0-3 .5-4 2C4 6 4 8 4 10c0 3 2 5 5 6v3a1 1 0 0 0 2 0v-3c3-1 5-3 5-6 0-2 0-4-1-6-1-1.5-2.5-2-4-2H9Z" />
-                    <path d="M12 10v4" />
-                    <path d="M10 12h4" />
+                    <path d="M9 3C7 3 5 4.8 5 7c0 2.2 1 4 2 5.5L8.5 20c.2.9.7 1.5 1.5 1.5s1.2-.6 1.5-1.5L12 17l.5 3c.3.9.8 1.5 1.5 1.5s1.3-.6 1.5-1.5L17 12.5C18 11 19 9.2 19 7c0-2.2-1.5-4-3.5-4H9z" />
                 </svg>
             </div>
             <h1 className="welcome-title">Hola, soy Denty 👋</h1>

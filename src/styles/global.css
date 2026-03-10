@@ -68,6 +68,8 @@ body {
 .app {
   display: flex;
   height: 100vh;
+  height: 100dvh;
+  /* dvh adjusts for mobile browser chrome (URL bar, nav bar) */
   overflow: hidden;
 }
 
@@ -222,6 +224,22 @@ body {
   display: flex;
 }
 
+/* Always show on touch devices since hover doesn't work */
+@media (hover: none) {
+  .chat-item-delete {
+    display: flex;
+    opacity: 0.45;
+    color: var(--text-secondary);
+  }
+
+  .chat-item-delete:active {
+    opacity: 1;
+    color: #ef4444;
+    background: #fee2e2;
+  }
+}
+
+/* Desktop hover */
 .chat-item-delete:hover {
   color: #ef4444;
   background: #fee2e2;

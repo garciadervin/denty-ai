@@ -30,10 +30,12 @@ export default function ChatApp() {
     // Refs to avoid stale closures in async operations
     const messagesRef = useRef<ChatMessage[]>([]);
     const activeIdRef = useRef<string | null>(null);
+    const sessionsRef = useRef<ChatSession[]>([]);
     const bottomRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => { messagesRef.current = messages; }, [messages]);
     useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+    useEffect(() => { sessionsRef.current = sessions; }, [sessions]);
 
     useEffect(() => {
         const saved = loadSessions();
@@ -65,24 +67,21 @@ export default function ChatApp() {
     }, [sessions]);
 
     const newSession = useCallback(() => {
-        const s: ChatSession = { id: genId(), title: 'Nueva consulta', createdAt: Date.now(), messages: [] };
-        setSessions((prev) => { const next = [s, ...prev]; saveSessions(next); return next; });
-        setActiveId(s.id);
+        // Don't create a session yet — wait for the first message (lazy creation in handleSend)
+        setActiveId(null);
         setMessages([]);
         setSidebarOpen(false);
     }, []);
 
     const deleteSession = useCallback((id: string) => {
-        setSessions((prev) => {
-            const next = prev.filter((s) => s.id !== id);
-            saveSessions(next);
-            if (activeIdRef.current === id) {
-                const fallback = next[0] ?? null;
-                setActiveId(fallback?.id ?? null);
-                setMessages(fallback?.messages ?? []);
-            }
-            return next;
-        });
+        const next = sessionsRef.current.filter((s) => s.id !== id);
+        saveSessions(next);
+        setSessions(next);
+        if (activeIdRef.current === id) {
+            const fallback = next[0] ?? null;
+            setActiveId(fallback?.id ?? null);
+            setMessages(fallback?.messages ?? []);
+        }
     }, []);
 
     const handleSend = useCallback(async (content: string | ContentPart[]) => {
@@ -208,7 +207,7 @@ export default function ChatApp() {
                                 <div className="message assistant">
                                     <div className="message-avatar">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M9 2c-1.5 0-3 .5-4 2C4 6 4 8 4 10c0 3 2 5 5 6v3a1 1 0 0 0 2 0v-3c3-1 5-3 5-6 0-2 0-4-1-6-1-1.5-2.5-2-4-2H9Z" />
+                                            <path d="M9 3C7 3 5 4.8 5 7c0 2.2 1 4 2 5.5L8.5 20c.2.9.7 1.5 1.5 1.5s1.2-.6 1.5-1.5L12 17l.5 3c.3.9.8 1.5 1.5 1.5s1.3-.6 1.5-1.5L17 12.5C18 11 19 9.2 19 7c0-2.2-1.5-4-3.5-4H9z" />
                                         </svg>
                                     </div>
                                     <div className="message-content">

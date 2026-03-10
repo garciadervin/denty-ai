@@ -24,9 +24,7 @@ export default function MessageInput({ onSend, isLoading, disabled }: MessageInp
         el.style.height = Math.min(el.scrollHeight, 150) + 'px';
     }, []);
 
-    useEffect(() => {
-        adjustHeight();
-    }, [text, adjustHeight]);
+    useEffect(() => { adjustHeight(); }, [text, adjustHeight]);
 
     const handleSend = useCallback(() => {
         const trimmed = text.trim();
@@ -34,7 +32,6 @@ export default function MessageInput({ onSend, isLoading, disabled }: MessageInp
         if (isLoading) return;
 
         let content: string | ContentPart[];
-
         if (images.length > 0) {
             const parts: ContentPart[] = [];
             if (trimmed) parts.push({ type: 'text', text: trimmed });
@@ -57,8 +54,7 @@ export default function MessageInput({ onSend, isLoading, disabled }: MessageInp
         }
     };
 
-    // Resize image to max 1024px (longest side) at 0.85 JPEG quality.
-    // This keeps the base64 payload small enough for the API regardless of original size.
+    // Resize image to max 1024px before encoding to keep payload small
     const resizeImage = (file: File): Promise<string> =>
         new Promise((resolve, reject) => {
             const MAX_PX = 1024;
@@ -86,13 +82,13 @@ export default function MessageInput({ onSend, isLoading, disabled }: MessageInp
             img.src = objectUrl;
         });
 
-    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB original file limit
+    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
         const files = Array.from(e.target.files ?? []);
-        files.forEach(async (file) => {
+        for (const file of files) {
             if (file.size > MAX_FILE_SIZE) {
-                alert(`La imagen "${file.name}" supera los 20 MB. Por favor usa una imagen más pequeña.`);
-                return;
+                alert(`La imagen "${file.name}" supera los 20 MB.`);
+                continue;
             }
             try {
                 const resized = await resizeImage(file);
@@ -100,26 +96,30 @@ export default function MessageInput({ onSend, isLoading, disabled }: MessageInp
             } catch {
                 alert(`No se pudo procesar la imagen "${file.name}".`);
             }
-        });
+        }
         e.target.value = '';
     };
 
     const startRecording = async () => {
+        // Detect best supported audio format — iOS Safari requires audio/mp4
+        const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg']
+            .find((t) => MediaRecorder.isTypeSupported(t)) ?? '';
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
             chunksRef.current = [];
             recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
             recorder.onstop = async () => {
                 stream.getTracks().forEach((t) => t.stop());
-                const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-                await transcribeAudio(blob);
+                const actualMime = recorder.mimeType || mimeType || 'audio/webm';
+                const blob = new Blob(chunksRef.current, { type: actualMime });
+                await transcribeAudio(blob, actualMime);
             };
             recorder.start();
             mediaRecorderRef.current = recorder;
             setIsRecording(true);
         } catch {
-            alert('No se pudo acceder al micrófono. Verifica los permisos.');
+            alert('No se pudo acceder al micrófono. Verifica los permisos del navegador.');
         }
     };
 
@@ -129,15 +129,17 @@ export default function MessageInput({ onSend, isLoading, disabled }: MessageInp
         setIsTranscribing(true);
     };
 
-    const transcribeAudio = async (blob: Blob) => {
+    const transcribeAudio = async (blob: Blob, mimeType: string) => {
+        const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
         const formData = new FormData();
-        formData.append('audio', blob, 'recording.webm');
+        formData.append('audio', blob, `recording.${ext}`);
         try {
             const res = await fetch('/api/transcribe', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
-            if (data.text) setText((prev) => prev ? prev + ' ' + data.text : data.text);
-        } catch {
-            // silent fail — user can type manually
+            if (data.text) setText((prev) => prev ? `${prev} ${data.text}` : data.text);
+        } catch (err) {
+            console.error('Transcription error:', err);
         } finally {
             setIsTranscribing(false);
         }
