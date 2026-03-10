@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import Groq, { toFile } from 'groq-sdk';
+import Groq from 'groq-sdk';
 
 export const POST: APIRoute = async ({ request }) => {
     const groq = new Groq({ apiKey: import.meta.env.GROQ_API_KEY });
@@ -14,14 +14,14 @@ export const POST: APIRoute = async ({ request }) => {
         });
     }
 
-    // In Node.js the File from FormData isn't directly usable by the Groq SDK.
-    // toFile() wraps the buffer into the expected Uploadable format.
-    const buffer = Buffer.from(await audioFile.arrayBuffer());
+    // Use native File constructor (Node.js 20+, available on Vercel)
+    // Avoids toFile() which can fail due to ESM/CJS bundling differences in production
+    const buffer = await audioFile.arrayBuffer();
     const ext = audioFile.type.includes('mp4') ? 'mp4'
         : audioFile.type.includes('ogg') ? 'ogg'
             : 'webm';
 
-    const file = await toFile(buffer, `recording.${ext}`, { type: audioFile.type });
+    const file = new File([buffer], `recording.${ext}`, { type: audioFile.type });
 
     const transcription = await groq.audio.transcriptions.create({
         file,
